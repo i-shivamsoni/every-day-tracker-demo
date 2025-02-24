@@ -47,7 +47,7 @@ habits:
 
 # Build settings
 theme: everydaytracker
-remote_theme: i-shivamsoni/everydaytracker
+#remote_theme: i-shivamsoni/everydaytracker
 plugins:
   - jekyll-feed
 
