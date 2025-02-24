@@ -1,0 +1,86 @@
+name: "Updated Jekyll Build and Deploy"
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths-ignore:
+      - .gitignore
+      - README.md
+      - LICENSE
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.4.2
+          bundler-cache: true
+          
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v4
+
+      # Add base64 and logger to Gemfile if they don't exist
+      - name: Update Gemfile for Ruby 3.4 compatibility
+        run: |
+          if ! grep -q "gem \"base64\"" Gemfile; then
+            echo 'gem "base64"' >> Gemfile
+          fi
+          if ! grep -q "gem \"logger\"" Gemfile; then
+            echo 'gem "logger"' >> Gemfile
+          fi
+      
+      # Rebuild the bundle with the new dependencies
+      - name: Bundle install
+        run: bundle install
+
+      # Create the _site directory
+      - name: Build Jekyll site
+        run: bundle exec jekyll build --verbose
+      
+      # Check if _site directory has contents
+      - name: Verify site was built
+        run: |
+          if [ -d "_site" ] && [ "$(ls -A _site)" ]; then
+            echo "Site built successfully"
+            ls -la _site
+          else
+            echo "Site build failed, _site is empty or doesn't exist"
+            exit 1
+          fi
+      
+      # Use the latest version of upload-pages-artifact
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "_site"
+          
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      # Use the latest version of deploy-pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
